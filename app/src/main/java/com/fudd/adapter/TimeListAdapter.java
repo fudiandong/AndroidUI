@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.fudd.activity.R;
 
@@ -18,7 +19,7 @@ import com.fudd.activity.R;
  * Description:
  */
 
-public class TimeListAdapter extends ArrayAdapter<Long> {
+public class TimeListAdapter extends ArrayAdapter<Long> implements View.OnLongClickListener {
 
     public TimeListAdapter(Context context, int resource) {
         super(context, resource);
@@ -31,12 +32,20 @@ public class TimeListAdapter extends ArrayAdapter<Long> {
         if (view == null){
             view = LayoutInflater.from(getContext()).inflate(R.layout.time_row,null);
         }
+        view.setOnLongClickListener(this);
         long time = getItem(position);
         TextView name = (TextView) view.findViewById(R.id.lap_name);
-        String taskStr = getContext().getResources().getString(R.string.app_name);
+        String taskStr = getContext().getResources().getString(R.string.task_name);
         name.setText(String.format(taskStr,position + 1));
         TextView lapTime = (TextView) view.findViewById(R.id.lap_time);
         lapTime.setText(DateUtils.formatElapsedTime(time));
         return view;
+    }
+
+    @Override
+    public boolean onLongClick(View v) {
+
+        Toast.makeText(this.getContext(),v.getId()+"",Toast.LENGTH_SHORT).show();
+        return false;
     }
 }

@@ -2,4 +2,7 @@
     <string name="app_name">AndroidUI</string>
     <string name="start">开始</string>
     <string name="reset">重置</string>
+    <string name="stop">停止</string>
+    <string name="task_name">Task %1$d</string>
+    <string name="clear_all">清除所有</string>
 </resources>
