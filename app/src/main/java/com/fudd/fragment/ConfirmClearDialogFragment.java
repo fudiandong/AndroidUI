@@ -31,16 +31,16 @@ public class ConfirmClearDialogFragment extends DialogFragment {
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         return new AlertDialog.Builder(getActivity())
-                .setTitle("11")
-                .setMessage("222")
-                .setPositiveButton("ok", new DialogInterface.OnClickListener() {
+                .setTitle("警告")
+                .setMessage("是否确定清除列表！")
+                .setPositiveButton("是", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         dialog.dismiss();
                         timeListAdapter.clear();
                     }
                 })
-                .setNegativeButton("cancel",null)
+                .setNegativeButton("否",null)
                 .create();
 
     }
