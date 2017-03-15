@@ -4,8 +4,14 @@ import android.app.FragmentManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.os.StrictMode;
 import android.support.v7.app.AppCompatActivity;
@@ -21,6 +27,7 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import com.fudd.fragment.ConfirmClearDialogFragment;
+import com.fudd.service.TimeService;
 import com.fudd.utils.Util;
 import com.fudd.adapter.TimeListAdapter;
 
@@ -30,14 +37,13 @@ import butterknife.ButterKnife;
 /**
  * 此工程用于记录 《Android UI 基础教程》 学习代码
  */
-public class TimeTrackerActivity extends AppCompatActivity implements View.OnClickListener {
-
+public class TimeTrackerActivity extends AppCompatActivity implements View.OnClickListener, ServiceConnection {
     /*
-    添加butterknife框架 File --> Pro Struct --> moudles(选中)--> dependencies 右边最后--> 点 ‘+’号
-    然后搜索 butterknife  添加
-    compile 'com.jakewharton:butterknife:8.5.1'
-    compile 'com.jakewharton:butterknife-compiler:8.5.1'
-     */
+        添加butterknife框架 File --> Pro Struct --> moudles(选中)--> dependencies 右边最后--> 点 ‘+’号
+        然后搜索 butterknife  添加
+        compile 'com.jakewharton:butterknife:8.5.1'
+        compile 'com.jakewharton:butterknife-compiler:8.5.1'
+         */
     @BindView(R.id.counter)
     TextView counter;
     @BindView(R.id.time_list)
@@ -46,23 +52,16 @@ public class TimeTrackerActivity extends AppCompatActivity implements View.OnCli
     Button mStart;
     @BindView(R.id.reset)
     Button mReset;
+    public static final String ACTION_TIME_UPDATE = "TimeUpdate";
+    public static final String ACTION_TIMER_FINISHED = "TimeFinished";
+    private TimeService timeService;
 
 
     private long start = 0;
     private long time = 0;
     private TimeListAdapter timeListAdapter;
 
-    private Handler handler = new Handler(){
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-            long current = System.currentTimeMillis();
-            time += current - start;
-            start = current;
-            counter.setText(DateUtils.formatElapsedTime(time/1000));
-            sendEmptyMessageDelayed(0,250);
-        }
-    };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,8 +84,22 @@ public class TimeTrackerActivity extends AppCompatActivity implements View.OnCli
                 .penaltyDialog()
                 .build());
         }
+        // 注册接收器
+        // Register the TimeReceiver
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ACTION_TIME_UPDATE);
+        filter.addAction(ACTION_TIMER_FINISHED);
+        registerReceiver(receiver, filter);
+
+
         //createNotification();
 //        createFragment();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        bindService(new Intent(this,TimeService.class),this,Context.BIND_AUTO_CREATE);
     }
 
     @Override
@@ -118,30 +131,38 @@ public class TimeTrackerActivity extends AppCompatActivity implements View.OnCli
 
     }
 
-    private boolean isTimerRunning(){
-        return  handler.hasMessages(0);
-    }
 
-    private void startTimer(){
-        start = System.currentTimeMillis();
-        handler.removeMessages(0);
-        handler.sendEmptyMessage(0);
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (receiver != null)
+            unregisterReceiver(receiver);
+
+        if (timeService != null) {
+            unbindService(this);
+            timeService = null;
+        }
     }
 
     @Override
     public void onClick(View v) {
        switch (v.getId()){
            case R.id.start_stop:
-               if (!isTimerRunning()){
-                   startTimer();
+               if (timeService == null){
                    mStart.setText(R.string.stop);
+                   startService(new Intent(this,TimeService.class));
+               }else if (!timeService.isTimerRunning()){
+                   mStart.setText(R.string.stop);
+                   timeService.startService(new Intent(this,TimeService.class));
                }else {
-                   stopTimer();
                    mStart.setText(R.string.start);
+                   timeService.stopTimer();
                }
                break;
            case R.id.reset:
-               resetTimer();
+               if (timeService != null){
+                   timeService.resetTimer();
+               }
                counter.setText(DateUtils.formatElapsedTime(0));
                mStart.setText(R.string.start);
                break;
@@ -149,31 +170,31 @@ public class TimeTrackerActivity extends AppCompatActivity implements View.OnCli
 
     }
 
-    private void resetTimer() {
-        stopTimer();
-        if (timeListAdapter != null){
-            timeListAdapter.add(time/1000);
+    // create bora
+    private BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            long time = intent.getLongExtra("time", 0);
+            // 根据收到的广播 判断
+            if (action == ACTION_TIME_UPDATE){
+                counter.setText(DateUtils.formatElapsedTime(time/1000));
+            }else if (action == ACTION_TIMER_FINISHED){
+                if (timeListAdapter != null && time > 0){
+                    timeListAdapter.add(time/1000);
+                }
+            }
+
         }
-        time = 0;
+    };
+
+    @Override
+    public void onServiceConnected(ComponentName name, IBinder service) {
+        timeService = ((TimeService.MyBinder) service).getService();
     }
 
-    private void stopTimer() {
-        handler.removeMessages(0);
+    @Override
+    public void onServiceDisconnected(ComponentName name) {
+        timeService = null;
     }
-
-    private void createNotification(){
-        Intent intent = new Intent(this,NotificationActivity.class);
-        PendingIntent pi = PendingIntent.getActivity(this,0,intent,0);
-        Notification notification = new Notification.Builder(this).setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("hi")
-                .setContentText("hhh5555")
-                .setContentIntent(pi)
-                .getNotification();
-//        Notification notifi = new Notification(R.mipmap.ic_launcher,"hi!!",System.currentTimeMillis());
-        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-
-        notification.flags |= Notification.FLAG_AUTO_CANCEL;
-        nm.notify(1,notification);
-    }
-
 }

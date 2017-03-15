@@ -16,6 +16,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".NotificationActivity"/>
+        <service android:name="com.fudd.service.TimeService" />
     </application>
 
 </manifest>
